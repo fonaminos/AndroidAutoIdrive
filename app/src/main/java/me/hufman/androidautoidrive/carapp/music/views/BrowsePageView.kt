@@ -168,11 +168,18 @@ class BrowsePageView(val state: RHMIState, val musicImageIDs: MusicImageIDs, val
 			} else {
 				currentListModel = object: RHMIListAdapter<MusicMetadata>(3, musicList) {
 					override fun convertRow(index: Int, item: MusicMetadata): Array<Any> {
+						var cleanedTitle = UnicodeCleaner.clean(item.title ?: "")
+						if(cleanedTitle.length > 22) {
+							cleanedTitle = cleanedTitle.substring(0, 20) + "..."
+						}
+						val cleanedSubtitle = UnicodeCleaner.clean(item.subtitle ?: "")
+						//TODO: want to figure out how to get smaller text for subtitle in RHMIList row
+						// (for ex see RTT has smaller text in rows and special formatting)
 						return arrayOf(
 								if (previouslySelected == item) checkmarkIcon else "",
 								if (item.browseable) folderIcon else
 									if (item.playable) songIcon else "",
-								UnicodeCleaner.clean(item.title ?: "")
+								"${cleanedTitle}\n${cleanedSubtitle}"
 						)
 					}
 				}
