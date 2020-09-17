@@ -36,6 +36,7 @@ class MusicApp(val securityAccess: SecurityAccess, val carAppAssets: CarAppResou
 	var appListViewVisible = false
 	var playbackViewVisible = false
 	var enqueuedViewVisible = false
+	var browseViewVisible = false
 	val playbackView: PlaybackView
 	val appSwitcherView: AppSwitcherView
 	val enqueuedView: EnqueuedView
@@ -88,7 +89,7 @@ class MusicApp(val securityAccess: SecurityAccess, val carAppAssets: CarAppResou
 		playbackView = PlaybackView(playbackStates.removeFirst { PlaybackView.fits(it) }, musicController, carAppImages, phoneAppResources, graphicsHelpers, musicImageIDs)
 		appSwitcherView = AppSwitcherView(unclaimedStates.removeFirst { AppSwitcherView.fits(it) }, musicAppDiscovery, avContext, graphicsHelpers, musicImageIDs)
 		enqueuedView = EnqueuedView(unclaimedStates.removeFirst { EnqueuedView.fits(it) }, musicController, graphicsHelpers, musicImageIDs)
-		browseView = BrowseView(listOf(unclaimedStates.removeFirst { BrowseView.fits(it) }, unclaimedStates.removeFirst { BrowseView.fits(it) }), musicController, musicImageIDs)
+		browseView = BrowseView(listOf(unclaimedStates.removeFirst { BrowseView.fits(it) }, unclaimedStates.removeFirst { BrowseView.fits(it) }), musicController, musicImageIDs, graphicsHelpers)
 		inputState = unclaimedStates.removeFirst { it.componentsList.filterIsInstance<RHMIComponent.Input>().firstOrNull()?.suggestModel ?: 0 > 0 }
 		customActionsView = CustomActionsView(unclaimedStates.removeFirst { CustomActionsView.fits(it) }, graphicsHelpers, musicController)
 
@@ -323,7 +324,7 @@ class MusicApp(val securityAccess: SecurityAccess, val carAppAssets: CarAppResou
 		appSwitcherView.initWidgets(playbackView)
 		playbackView.initWidgets(appSwitcherView, enqueuedView, browseView, customActionsView)
 		enqueuedView.initWidgets(playbackView)
-		browseView.initWidgets(playbackView, inputState)
+		browseView.initWidgets(playbackView, inputState, this)
 		customActionsView.initWidgets(playbackView)
 	}
 
@@ -339,6 +340,10 @@ class MusicApp(val securityAccess: SecurityAccess, val carAppAssets: CarAppResou
 		if (enqueuedViewVisible) {
 			enqueuedView.redraw()
 		}
+		if(browseViewVisible) {
+			browseView.currentPage?.redraw()
+		}
+
 		// if running over USB or audio context is granted, set the global metadata
 		if (!musicAppMode.shouldRequestAudioContext() || avContext.currentContext) {
 			globalMetadata.redraw()

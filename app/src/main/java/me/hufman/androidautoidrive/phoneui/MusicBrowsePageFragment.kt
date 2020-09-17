@@ -131,10 +131,10 @@ class BrowseAdapter(val context: Context, val icons: Map<String, Bitmap>, val co
 		holder.view.findViewById<TextView>(R.id.txtBrowseEntrySubtitle).setText(item.subtitle)
 
 		holder.view.findViewById<ImageView>(R.id.imgBrowseType).colorFilter = Utils.getIconMask(context.getThemeColor(android.R.attr.textColorSecondary))
-		if (item.browseable) {
+		if(item.coverArt == null) {
 			holder.view.findViewById<ImageView>(R.id.imgBrowseType).setImageBitmap(icons[MusicBrowsePageFragment.FOLDER_ID])
 		} else {
-			holder.view.findViewById<ImageView>(R.id.imgBrowseType).setImageBitmap(icons[MusicBrowsePageFragment.SONG_ID])
+			holder.view.findViewById<ImageView>(R.id.imgBrowseType).setImageBitmap(item.coverArt)
 		}
 	}
 }

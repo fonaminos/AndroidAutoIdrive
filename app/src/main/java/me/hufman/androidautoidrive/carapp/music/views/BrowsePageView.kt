@@ -3,8 +3,8 @@ package me.hufman.androidautoidrive.carapp.music.views
 import android.util.Log
 import de.bmw.idrive.BMWRemoting
 import kotlinx.coroutines.*
+import me.hufman.androidautoidrive.GraphicsHelpers
 import me.hufman.androidautoidrive.UnicodeCleaner
-import me.hufman.androidautoidrive.awaitPending
 import me.hufman.androidautoidrive.carapp.InputState
 import me.hufman.androidautoidrive.carapp.RHMIActionAbort
 import me.hufman.androidautoidrive.carapp.RHMIListAdapter
@@ -15,6 +15,7 @@ import me.hufman.idriveconnectionkit.rhmi.*
 import java.util.*
 import kotlin.collections.ArrayList
 import kotlin.coroutines.CoroutineContext
+import kotlin.math.max
 
 enum class BrowseAction(val getLabel: () -> String) {
 	JUMPBACK({ L.MUSIC_BROWSE_ACTION_JUMPBACK }),
@@ -25,7 +26,7 @@ enum class BrowseAction(val getLabel: () -> String) {
 		return getLabel()
 	}
 }
-class BrowsePageView(val state: RHMIState, val musicImageIDs: MusicImageIDs, val browsePageModel: BrowsePageModel, val browseController: BrowsePageController, var previouslySelected: MusicMetadata?): CoroutineScope {
+class BrowsePageView(val state: RHMIState, val musicImageIDs: MusicImageIDs, val browsePageModel: BrowsePageModel, val browseController: BrowseView.BrowsePageController, var previouslySelected: MusicMetadata?, val graphicsHelpers: GraphicsHelpers): CoroutineScope {
 	override val coroutineContext: CoroutineContext
 		get() = Dispatchers.IO
 
@@ -54,7 +55,7 @@ class BrowsePageView(val state: RHMIState, val musicImageIDs: MusicImageIDs, val
 			actionsListComponent.setProperty(RHMIProperty.PropertyId.LIST_COLUMNWIDTH, "0,0,*")
 			val musicListComponent = browsePageState.componentsList.filterIsInstance<RHMIComponent.List>()[1]
 			musicListComponent.setVisible(true)
-			musicListComponent.setProperty(RHMIProperty.PropertyId.LIST_COLUMNWIDTH, "57,50,*")
+			musicListComponent.setProperty(RHMIProperty.PropertyId.LIST_COLUMNWIDTH, "57,80,*")
 			// set up dynamic paging
 			musicListComponent.setProperty(RHMIProperty.PropertyId.VALID, false)
 			// set the page title
@@ -80,6 +81,10 @@ class BrowsePageView(val state: RHMIState, val musicImageIDs: MusicImageIDs, val
 	private val actions = ArrayList<BrowseAction>()
 	private val actionsListModel = RHMIListAdapter<BrowseAction>(3, actions)
 
+	private var currentlyVisibleRows: List<MusicMetadata> = emptyList()
+	private var currentVisibleRowsMusicMetadata: ArrayList<MusicMetadata> = ArrayList()
+	private var currentIndex: Int = 0
+
 	init {
 		folderNameLabel = state.componentsList.filterIsInstance<RHMIComponent.Label>().first()
 		actionsListComponent = state.componentsList.filterIsInstance<RHMIComponent.List>()[0]
@@ -88,35 +93,14 @@ class BrowsePageView(val state: RHMIState, val musicImageIDs: MusicImageIDs, val
 
 	fun initWidgets(inputState: RHMIState) {
 		folderNameLabel.setVisible(true)
-		// handle action clicks
-		actionsListComponent.getAction()?.asRAAction()?.rhmiActionCallback = RHMIActionListCallback { index ->
-			val action = actions.getOrNull(index)
-			when (action) {
-				BrowseAction.JUMPBACK -> {
-					browseController.jumpBack(musicListComponent.getAction()?.asHMIAction())
-				}
-				BrowseAction.FILTER -> {
-					musicListComponent.getAction()?.asHMIAction()?.getTargetModel()?.asRaIntModel()?.value = inputState.id
-					showFilterInput(inputState)
-				}
-				BrowseAction.SEARCH -> {
-					musicListComponent.getAction()?.asHMIAction()?.getTargetModel()?.asRaIntModel()?.value = inputState.id
-					showSearchInput(inputState)
-				}
-			}
-		}
-		// handle song clicks
-		musicListComponent.getAction()?.asRAAction()?.rhmiActionCallback = RHMIActionListCallback { index ->
-			val entry = musicList.getOrNull(index)
-			if (entry != null) {
-				Log.i(TAG,"User selected browse entry $entry")
 
-				previouslySelected = entry  // update the selection state for future redraws
-				browseController.onListSelection(entry, musicListComponent.getAction()?.asHMIAction())
-			} else {
-				Log.w(TAG, "User selected index $index but the list is only ${musicList.size} long")
-			}
-		}
+		// handle action clicks
+		actionsListComponent.getAction()?.asRAAction()?.rhmiActionCallback = RHMIActionListCallback { onActionCallback(it, inputState) }
+
+		// handle song clicks
+		musicListComponent.getAction()?.asRAAction()?.rhmiActionCallback = RHMIActionListCallback { onClick(it) }
+
+		musicListComponent.getSelectAction()?.asRAAction()?.rhmiActionCallback = RHMIActionListCallback { onSelectAction(it) }
 	}
 
 	fun show() {
@@ -133,6 +117,14 @@ class BrowsePageView(val state: RHMIState, val musicImageIDs: MusicImageIDs, val
 		musicListComponent.requestDataCallback = RequestDataCallback { startIndex, numRows ->
 			Log.i(TAG, "Car requested more data, $startIndex:${startIndex+numRows}")
 			showList(startIndex, numRows)
+
+			val endIndex = if (startIndex+numRows >= musicList.size) musicList.size-1 else startIndex+numRows
+			currentlyVisibleRows = musicList.subList(startIndex,endIndex+1)
+
+			currentVisibleRowsMusicMetadata.clear()
+			currentlyVisibleRows.forEach { musicMetadata ->
+				currentVisibleRowsMusicMetadata.add(MusicMetadata.copy(musicMetadata))
+			}
 		}
 
 		// start loading data
@@ -168,18 +160,27 @@ class BrowsePageView(val state: RHMIState, val musicImageIDs: MusicImageIDs, val
 			} else {
 				currentListModel = object: RHMIListAdapter<MusicMetadata>(3, musicList) {
 					override fun convertRow(index: Int, item: MusicMetadata): Array<Any> {
+						val checkmarkIcon = if (previouslySelected == item) checkmarkIcon else ""
+						val coverArtImage = if (item.coverArt != null) graphicsHelpers.compress(item.coverArt!!, 90, 90, quality = 30) else folderIcon
+
 						var cleanedTitle = UnicodeCleaner.clean(item.title ?: "")
 						if(cleanedTitle.length > 22) {
 							cleanedTitle = cleanedTitle.substring(0, 20) + "..."
 						}
-						val cleanedSubtitle = UnicodeCleaner.clean(item.subtitle ?: "")
-						//TODO: want to figure out how to get smaller text for subtitle in RHMIList row
-						// (for ex see RTT has smaller text in rows and special formatting)
+
+						//if there is no subtitle then don't display it
+						var displayString = ""
+						if(item.subtitle.isNullOrBlank()) {
+							displayString = cleanedTitle
+						} else {
+							val cleanedSubtitle = UnicodeCleaner.clean(item.subtitle ?: "")
+							displayString = "${cleanedTitle}\n${cleanedSubtitle}"
+						}
+
 						return arrayOf(
-								if (previouslySelected == item) checkmarkIcon else "",
-								if (item.browseable) folderIcon else
-									if (item.playable) songIcon else "",
-								"${cleanedTitle}\n${cleanedSubtitle}"
+								checkmarkIcon,
+								coverArtImage,
+								displayString
 						)
 					}
 				}
@@ -201,6 +202,18 @@ class BrowsePageView(val state: RHMIState, val musicImageIDs: MusicImageIDs, val
 
 				// having the song list loaded may change the available actions
 				showActionsList()
+			}
+		}
+	}
+
+	fun redraw() {
+		//redraw currently visible rows if one of them has a cover art that was retrieved
+		for ((index, metadata) in currentVisibleRowsMusicMetadata.withIndex()) {
+			if(metadata != currentlyVisibleRows[index]) {
+
+				//can only see roughly 5 rows (2 before selected index)
+				showList(max(0,currentIndex-4),8)
+				break
 			}
 		}
 	}
@@ -331,5 +344,38 @@ class BrowsePageView(val state: RHMIState, val musicImageIDs: MusicImageIDs, val
 		loaderJob?.cancel()
 		searchJob?.cancel()
 		musicListComponent.requestDataCallback = null
+	}
+
+	private fun onActionCallback(index: Int, inputState: RHMIState) {
+		val action = actions.getOrNull(index)
+		when (action) {
+			BrowseAction.JUMPBACK -> {
+				browseController.jumpBack(musicListComponent.getAction()?.asHMIAction())
+			}
+			BrowseAction.FILTER -> {
+				musicListComponent.getAction()?.asHMIAction()?.getTargetModel()?.asRaIntModel()?.value = inputState.id
+				showFilterInput(inputState)
+			}
+			BrowseAction.SEARCH -> {
+				musicListComponent.getAction()?.asHMIAction()?.getTargetModel()?.asRaIntModel()?.value = inputState.id
+				showSearchInput(inputState)
+			}
+		}
+	}
+
+	private fun onClick(index: Int) {
+		val entry = musicList.getOrNull(index)
+		if (entry != null) {
+			Log.i(TAG,"User selected browse entry $entry")
+
+			previouslySelected = entry  // update the selection state for future redraws
+			browseController.onListSelection(entry, musicListComponent.getAction()?.asHMIAction())
+		} else {
+			Log.w(TAG, "User selected index $index but the list is only ${musicList.size} long")
+		}
+	}
+
+	private fun onSelectAction(index: Int) {
+		currentIndex = index
 	}
 }
