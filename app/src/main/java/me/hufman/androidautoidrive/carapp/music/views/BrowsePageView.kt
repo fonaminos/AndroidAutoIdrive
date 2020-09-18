@@ -55,7 +55,7 @@ class BrowsePageView(val state: RHMIState, val musicImageIDs: MusicImageIDs, val
 			actionsListComponent.setProperty(RHMIProperty.PropertyId.LIST_COLUMNWIDTH, "0,0,*")
 			val musicListComponent = browsePageState.componentsList.filterIsInstance<RHMIComponent.List>()[1]
 			musicListComponent.setVisible(true)
-			musicListComponent.setProperty(RHMIProperty.PropertyId.LIST_COLUMNWIDTH, "57,80,*")
+			musicListComponent.setProperty(RHMIProperty.PropertyId.LIST_COLUMNWIDTH, "57,90,10,*")
 			// set up dynamic paging
 			musicListComponent.setProperty(RHMIProperty.PropertyId.VALID, false)
 			// set the page title
@@ -81,7 +81,7 @@ class BrowsePageView(val state: RHMIState, val musicImageIDs: MusicImageIDs, val
 	private val actions = ArrayList<BrowseAction>()
 	private val actionsListModel = RHMIListAdapter<BrowseAction>(3, actions)
 
-	private var currentlyVisibleRows: List<MusicMetadata> = emptyList()
+	private var currentlyVisibleRows: ArrayList<MusicMetadata> = ArrayList()
 	private var currentVisibleRowsMusicMetadata: ArrayList<MusicMetadata> = ArrayList()
 	private var currentIndex: Int = 0
 
@@ -119,7 +119,8 @@ class BrowsePageView(val state: RHMIState, val musicImageIDs: MusicImageIDs, val
 			showList(startIndex, numRows)
 
 			val endIndex = if (startIndex+numRows >= musicList.size) musicList.size-1 else startIndex+numRows
-			currentlyVisibleRows = musicList.subList(startIndex,endIndex+1)
+			currentlyVisibleRows.clear()
+			currentlyVisibleRows.addAll(musicList.subList(startIndex,endIndex+1))
 
 			currentVisibleRowsMusicMetadata.clear()
 			currentlyVisibleRows.forEach { musicMetadata ->
@@ -128,6 +129,8 @@ class BrowsePageView(val state: RHMIState, val musicImageIDs: MusicImageIDs, val
 		}
 
 		// start loading data
+		currentVisibleRowsMusicMetadata.clear()
+		currentlyVisibleRows.clear()
 		loaderJob?.cancel()
 		loaderJob = launch(Dispatchers.IO) {
 			if (this@BrowsePageView.musicList.isEmpty()) {
@@ -158,7 +161,7 @@ class BrowsePageView(val state: RHMIState, val musicImageIDs: MusicImageIDs, val
 				show()  // show the next page deeper
 				return@launch
 			} else {
-				currentListModel = object: RHMIListAdapter<MusicMetadata>(3, musicList) {
+				currentListModel = object: RHMIListAdapter<MusicMetadata>(4, musicList) {
 					override fun convertRow(index: Int, item: MusicMetadata): Array<Any> {
 						val checkmarkIcon = if (previouslySelected == item) checkmarkIcon else ""
 						val coverArtImage = if (item.coverArt != null) graphicsHelpers.compress(item.coverArt!!, 90, 90, quality = 30) else folderIcon
@@ -169,17 +172,18 @@ class BrowsePageView(val state: RHMIState, val musicImageIDs: MusicImageIDs, val
 						}
 
 						//if there is no subtitle then don't display it
-						var displayString = ""
+						val displayString: String
 						if(item.subtitle.isNullOrBlank()) {
 							displayString = cleanedTitle
 						} else {
-							val cleanedSubtitle = UnicodeCleaner.clean(item.subtitle ?: "")
+							val cleanedSubtitle = UnicodeCleaner.clean(item.subtitle)
 							displayString = "${cleanedTitle}\n${cleanedSubtitle}"
 						}
 
 						return arrayOf(
 								checkmarkIcon,
 								coverArtImage,
+								"",
 								displayString
 						)
 					}
@@ -250,8 +254,8 @@ class BrowsePageView(val state: RHMIState, val musicImageIDs: MusicImageIDs, val
 		musicListComponent.getModel()?.setValue(currentListModel, startIndex, numRows, currentListModel.height)
 	}
 
-	fun showFilterInput(inputState: RHMIState) {
-		val showState = object: InputState<MusicMetadata>(inputState) {
+	private fun showFilterInput(inputState: RHMIState) {
+		object: InputState<MusicMetadata>(inputState) {
 			override fun onEntry(input: String) {
 				val suggestions = musicList.asSequence().filter {
 					UnicodeCleaner.clean(it.title ?: "").split(Regex("\\s+")).any { word ->
@@ -275,7 +279,7 @@ class BrowsePageView(val state: RHMIState, val musicImageIDs: MusicImageIDs, val
 	}
 
 	fun showSearchInput(inputState: RHMIState) {
-		val showState = object : InputState<MusicMetadata>(inputState) {
+		object : InputState<MusicMetadata>(inputState) {
 			val SEARCHRESULT_SEARCHING = MusicMetadata(mediaId="__SEARCHING__", title=L.MUSIC_BROWSE_SEARCHING)
 			val SEARCHRESULT_EMPTY = MusicMetadata(mediaId="__EMPTY__", title=L.MUSIC_BROWSE_EMPTY)
 			val MAX_RETRIES = 2
@@ -344,6 +348,8 @@ class BrowsePageView(val state: RHMIState, val musicImageIDs: MusicImageIDs, val
 		loaderJob?.cancel()
 		searchJob?.cancel()
 		musicListComponent.requestDataCallback = null
+		currentlyVisibleRows.clear()
+		currentVisibleRowsMusicMetadata.clear()
 	}
 
 	private fun onActionCallback(index: Int, inputState: RHMIState) {
