@@ -77,14 +77,13 @@ class BrowsePageView(val state: RHMIState, musicImageIDs: MusicImageIDs, val bro
 
 	val checkmarkIcon = BMWRemoting.RHMIResourceIdentifier(BMWRemoting.RHMIResourceType.IMAGEID, musicImageIDs.CHECKMARK)
 	val folderIcon = BMWRemoting.RHMIResourceIdentifier(BMWRemoting.RHMIResourceType.IMAGEID, musicImageIDs.BROWSE)
-	val songIcon = BMWRemoting.RHMIResourceIdentifier(BMWRemoting.RHMIResourceType.IMAGEID, musicImageIDs.SONG)
 
 	private val actions = ArrayList<BrowseAction>()
-	private val actionsListModel = RHMIListAdapter<BrowseAction>(3, actions)
+	private val actionsListModel = RHMIListAdapter(3, actions)
 
-	private var currentlyVisibleRows: ArrayList<MusicMetadata> = ArrayList()
-	private var currentVisibleRowsMusicMetadata: ArrayList<MusicMetadata> = ArrayList()
-	private var currentIndex: Int = 0
+	var visibleRows: List<MusicMetadata> = emptyList()
+	var visibleRowsOriginalMusicMetadata: List<MusicMetadata> = emptyList()
+	var selectedIndex: Int = 0
 
 	init {
 		folderNameLabel = state.componentsList.filterIsInstance<RHMIComponent.Label>().first()
@@ -119,19 +118,12 @@ class BrowsePageView(val state: RHMIState, musicImageIDs: MusicImageIDs, val bro
 			Log.i(TAG, "Car requested more data, $startIndex:${startIndex+numRows}")
 			showList(startIndex, numRows)
 
-			val endIndex = if (startIndex+numRows >= musicList.size) musicList.size-1 else startIndex+numRows
-			currentlyVisibleRows.clear()
-			currentlyVisibleRows.addAll(musicList.subList(startIndex,endIndex+1))
-
-			currentVisibleRowsMusicMetadata.clear()
-			currentlyVisibleRows.forEach { musicMetadata ->
-				currentVisibleRowsMusicMetadata.add(MusicMetadata.copy(musicMetadata))
-			}
+			val endIndex = if (startIndex + numRows >= musicList.size) musicList.size - 1 else startIndex + numRows
+			visibleRows = musicList.subList(startIndex, endIndex + 1).toMutableList()
+			visibleRowsOriginalMusicMetadata = visibleRows.map { MusicMetadata.copy(it) }
 		}
 
 		// start loading data
-		currentVisibleRowsMusicMetadata.clear()
-		currentlyVisibleRows.clear()
 		loaderJob?.cancel()
 		loaderJob = launch(Dispatchers.IO) {
 			if (this@BrowsePageView.musicList.isEmpty()) {
@@ -212,12 +204,11 @@ class BrowsePageView(val state: RHMIState, musicImageIDs: MusicImageIDs, val bro
 	}
 
 	fun redraw() {
-		//redraw currently visible rows if one of them has a cover art that was retrieved
-		for ((index, metadata) in currentVisibleRowsMusicMetadata.withIndex()) {
-			if(metadata != currentlyVisibleRows[index]) {
-
-				//can only see roughly 5 rows (2 before selected index)
-				showList(max(0,currentIndex-4),8)
+		// redraw all currently visible rows if one of them has a cover art that was retrieved
+		for ((index, metadata) in visibleRowsOriginalMusicMetadata.withIndex()) {
+			if (metadata != visibleRows[index]) {
+				// can only see roughly 5 rows
+				showList(max(0, selectedIndex - 4), 8)
 				break
 			}
 		}
@@ -349,8 +340,6 @@ class BrowsePageView(val state: RHMIState, musicImageIDs: MusicImageIDs, val bro
 		loaderJob?.cancel()
 		searchJob?.cancel()
 		musicListComponent.requestDataCallback = null
-		currentlyVisibleRows.clear()
-		currentVisibleRowsMusicMetadata.clear()
 	}
 
 	private fun onActionCallback(index: Int, inputState: RHMIState) {
@@ -370,6 +359,9 @@ class BrowsePageView(val state: RHMIState, musicImageIDs: MusicImageIDs, val bro
 		}
 	}
 
+	/**
+	 * On click callback for when the user selects a browse list item.
+	 */
 	private fun onClick(index: Int) {
 		val entry = musicList.getOrNull(index)
 		if (entry != null) {
@@ -382,7 +374,10 @@ class BrowsePageView(val state: RHMIState, musicImageIDs: MusicImageIDs, val bro
 		}
 	}
 
+	/**
+	 * On select action callback. This is called every time the user scrolls in the browse list component.
+	 */
 	private fun onSelectAction(index: Int) {
-		currentIndex = index
+		selectedIndex = index
 	}
 }
