@@ -35,6 +35,9 @@ class BrowsePageView(val state: RHMIState, musicImageIDs: MusicImageIDs, val bro
 		const val LOADING_TIMEOUT = 2000
 		const val TAG = "BrowsePageView"
 
+		// current default row width only supports 22 chars before rolling over
+		private const val ROW_LINE_MAX_LENGTH = 22
+
 		val emptyList = RHMIModel.RaListModel.RHMIListConcrete(3).apply {
 			this.addRow(arrayOf("", "", L.MUSIC_BROWSE_EMPTY))
 		}
@@ -160,17 +163,16 @@ class BrowsePageView(val state: RHMIState, musicImageIDs: MusicImageIDs, val bro
 						val coverArtImage = if (item.coverArt != null) graphicsHelpers.compress(item.coverArt!!, 90, 90, quality = 30) else folderIcon
 
 						var cleanedTitle = UnicodeCleaner.clean(item.title ?: "")
-						if(cleanedTitle.length > 22) {
+						if (cleanedTitle.length > ROW_LINE_MAX_LENGTH) {
 							cleanedTitle = cleanedTitle.substring(0, 20) + "..."
 						}
 
-						//if there is no subtitle then don't display it
-						val displayString: String
-						if(item.subtitle.isNullOrBlank()) {
-							displayString = cleanedTitle
+						// if there is no subtitle then don't display it
+						val displayString = if (item.subtitle.isNullOrBlank()) {
+							cleanedTitle
 						} else {
 							val cleanedSubtitle = UnicodeCleaner.clean(item.subtitle)
-							displayString = "${cleanedTitle}\n${cleanedSubtitle}"
+							"${cleanedTitle}\n${cleanedSubtitle}"
 						}
 
 						return arrayOf(
@@ -242,6 +244,9 @@ class BrowsePageView(val state: RHMIState, musicImageIDs: MusicImageIDs, val bro
 		}
 	}
 
+	/**
+	 * Shows the list component content from the start index for the specified number of rows.
+	 */
 	private fun showList(startIndex: Int = 0, numRows: Int = 20) {
 		musicListComponent.getModel()?.setValue(currentListModel, startIndex, numRows, currentListModel.height)
 	}
@@ -326,10 +331,10 @@ class BrowsePageView(val state: RHMIState, musicImageIDs: MusicImageIDs, val bro
 			}
 
 			override fun convertRow(row: MusicMetadata): String {
-				if (row.subtitle != null) {
-					return UnicodeCleaner.clean("${row.title}\n${row.subtitle}")
+				return if (row.subtitle != null) {
+					UnicodeCleaner.clean("${row.title}\n${row.subtitle}")
 				} else {
-					return UnicodeCleaner.clean(row.title ?: "")
+					UnicodeCleaner.clean(row.title ?: "")
 				}
 			}
 		}

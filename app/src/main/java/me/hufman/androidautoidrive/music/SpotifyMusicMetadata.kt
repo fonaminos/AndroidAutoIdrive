@@ -28,12 +28,16 @@ class SpotifyMusicMetadata(
 		}
 
 		fun fromBrowseItem(spotifyController: SpotifyAppController, listItem: ListItem): SpotifyMusicMetadata {
-			val coverArtUri = if(listItem.imageUri.raw.contains("android")) null else listItem.imageUri.raw
+			// some imageUris that aren't valid Spotify imageUris occasionally come up and can't be used in the ImagesApi call
+			val coverArtUri = if (listItem.imageUri == null || listItem.imageUri.raw?.contains("android") == true) null else listItem.imageUri.raw
+
 			return SpotifyMusicMetadata(spotifyController, mediaId = listItem.uri, queueId = listItem.uri.hashCode().toLong(), title = listItem.title, subtitle = listItem.subtitle, playable = listItem.playable, browseable = listItem.hasChildren, coverArtUri = coverArtUri)
 		}
 
 		fun fromSpotifyQueueListItem(spotifyController: SpotifyAppController, listItem: ListItem): SpotifyMusicMetadata {
-			val coverArtUri = if(listItem.imageUri.raw.contains("android")) null else listItem.imageUri.raw
+			// some imageUris that aren't valid Spotify imageUris occasionally come up and can't be used in the ImagesApi call
+			val coverArtUri = if (listItem.imageUri == null || listItem.imageUri.raw?.contains("android") == true) null else listItem.imageUri.raw
+
 			return SpotifyMusicMetadata(spotifyController, mediaId = listItem.uri, queueId = listItem.uri.hashCode().toLong(),
 					title = listItem.title, artist = listItem.subtitle, subtitle = listItem.subtitle,
 					playable = listItem.playable, browseable = listItem.hasChildren,
@@ -42,5 +46,5 @@ class SpotifyMusicMetadata(
 	}
 
   	override val coverArt: Bitmap?
-      get() = if(coverArtUri != null) spotifyController.getCoverArt(ImageUri(coverArtUri)) else null
+      get() = if (coverArtUri != null) spotifyController.getCoverArt(ImageUri(coverArtUri)) else null
 }
