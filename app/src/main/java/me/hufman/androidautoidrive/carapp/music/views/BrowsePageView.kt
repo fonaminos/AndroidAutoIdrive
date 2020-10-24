@@ -160,7 +160,8 @@ class BrowsePageView(val state: RHMIState, musicImageIDs: MusicImageIDs, val bro
 				currentListModel = object: RHMIListAdapter<MusicMetadata>(4, musicList) {
 					override fun convertRow(index: Int, item: MusicMetadata): Array<Any> {
 						val checkmarkIcon = if (previouslySelected == item) checkmarkIcon else ""
-						val coverArtImage = if (item.coverArt != null) graphicsHelpers.compress(item.coverArt!!, 90, 90, quality = 30) else folderIcon
+						val coverArt = item.coverArt
+						val coverArtImage = if (coverArt != null) graphicsHelpers.compress(coverArt, 90, 90, quality = 30) else folderIcon
 
 						var cleanedTitle = UnicodeCleaner.clean(item.title ?: "")
 						if (cleanedTitle.length > ROW_LINE_MAX_LENGTH) {
