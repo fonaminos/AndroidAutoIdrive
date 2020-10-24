@@ -38,11 +38,11 @@ class BrowsePageView(val state: RHMIState, musicImageIDs: MusicImageIDs, val bro
 		// current default row width only supports 22 chars before rolling over
 		private const val ROW_LINE_MAX_LENGTH = 22
 
-		val emptyList = RHMIModel.RaListModel.RHMIListConcrete(3).apply {
-			this.addRow(arrayOf("", "", L.MUSIC_BROWSE_EMPTY))
+		val emptyList = RHMIModel.RaListModel.RHMIListConcrete(4).apply {
+			this.addRow(arrayOf("", "", "", L.MUSIC_BROWSE_EMPTY))
 		}
-		val loadingList = RHMIModel.RaListModel.RHMIListConcrete(3).apply {
-			this.addRow(arrayOf("", "", L.MUSIC_BROWSE_LOADING))
+		val loadingList = RHMIModel.RaListModel.RHMIListConcrete(4).apply {
+			this.addRow(arrayOf("", "", "", L.MUSIC_BROWSE_LOADING))
 		}
 
 		fun fits(state: RHMIState): Boolean {
@@ -80,6 +80,7 @@ class BrowsePageView(val state: RHMIState, musicImageIDs: MusicImageIDs, val bro
 
 	val checkmarkIcon = BMWRemoting.RHMIResourceIdentifier(BMWRemoting.RHMIResourceType.IMAGEID, musicImageIDs.CHECKMARK)
 	val folderIcon = BMWRemoting.RHMIResourceIdentifier(BMWRemoting.RHMIResourceType.IMAGEID, musicImageIDs.BROWSE)
+	val songIcon = BMWRemoting.RHMIResourceIdentifier(BMWRemoting.RHMIResourceType.IMAGEID, musicImageIDs.SONG)
 
 	private val actions = ArrayList<BrowseAction>()
 	private val actionsListModel = RHMIListAdapter(3, actions)
@@ -161,7 +162,13 @@ class BrowsePageView(val state: RHMIState, musicImageIDs: MusicImageIDs, val bro
 					override fun convertRow(index: Int, item: MusicMetadata): Array<Any> {
 						val checkmarkIcon = if (previouslySelected == item) checkmarkIcon else ""
 						val coverArt = item.coverArt
-						val coverArtImage = if (coverArt != null) graphicsHelpers.compress(coverArt, 90, 90, quality = 30) else folderIcon
+						val coverArtImage =
+								if (coverArt != null)
+									graphicsHelpers.compress(coverArt, 90, 90, quality = 30)
+								else if (item.browseable)
+									folderIcon
+								else
+									songIcon
 
 						var cleanedTitle = UnicodeCleaner.clean(item.title ?: "")
 						if (cleanedTitle.length > ROW_LINE_MAX_LENGTH) {

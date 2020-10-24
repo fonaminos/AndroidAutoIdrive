@@ -93,10 +93,10 @@ class BrowseView(val states: List<RHMIState>, val musicController: MusicControll
 		}
 		// show the content for the page that we are showing
 		currentPage = pageStack.last()
-		if (currentPage != null && stateId == currentPage!!.state.id) {
+		if (currentPage != null && stateId == currentPage?.state?.id) {
 			// the system showed the page that was just added, load the info for it
-			currentPage!!.initWidgets(inputState)
-			currentPage!!.show()
+			currentPage?.initWidgets(inputState)
+			currentPage?.show()
 		}
 	}
 
