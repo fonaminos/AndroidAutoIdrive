@@ -256,7 +256,9 @@ class BrowsePageView(val state: RHMIState, musicImageIDs: MusicImageIDs, val bro
 	 * Shows the list component content from the start index for the specified number of rows.
 	 */
 	private fun showList(startIndex: Int = 0, numRows: Int = 20) {
-		musicListComponent.getModel()?.setValue(currentListModel, startIndex, numRows, currentListModel.height)
+		if (startIndex >= 0) {
+			musicListComponent.getModel()?.setValue(currentListModel, startIndex, numRows, currentListModel.height)
+		}
 	}
 
 	private fun showFilterInput(inputState: RHMIState) {
