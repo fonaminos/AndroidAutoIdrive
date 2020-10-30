@@ -32,6 +32,7 @@ class MusicBrowsePageFragment: Fragment(), CoroutineScope {
 	companion object {
 		const val ARG_MEDIA_ID = "me.hufman.androidautoidrive.BROWSE_MEDIA_ID"
 		const val FOLDER_ID = "155.png"
+		const val SONG_ID = "152.png"
 
 		fun newInstance(mediaEntry: MusicMetadata?): MusicBrowsePageFragment {
 			val fragment = MusicBrowsePageFragment()
@@ -138,8 +139,13 @@ class BrowseAdapter(val context: Context, val icons: Map<String, Bitmap>, val co
 
 		holder.view.findViewById<ImageView>(R.id.imgBrowseType).colorFilter = Utils.getIconMask(context.getThemeColor(android.R.attr.textColorSecondary))
 
-		if(item.coverArt == null && item.browseable) {
-			holder.view.findViewById<ImageView>(R.id.imgBrowseType).setImageBitmap(icons[MusicBrowsePageFragment.FOLDER_ID])
+		if(item.coverArt == null) {
+			holder.view.findViewById<ImageView>(R.id.imgBrowseType).setImageBitmap(
+					if (item.browseable)
+						icons[MusicBrowsePageFragment.FOLDER_ID]
+					else
+						icons[MusicBrowsePageFragment.SONG_ID]
+			)
 		} else {
 			holder.view.findViewById<ImageView>(R.id.imgBrowseType).setImageBitmap(item.coverArt)
 		}

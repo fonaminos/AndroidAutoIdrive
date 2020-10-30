@@ -12,6 +12,7 @@ import me.hufman.androidautoidrive.carapp.RHMIListAdapter
 import me.hufman.androidautoidrive.carapp.music.MusicImageIDs
 import me.hufman.androidautoidrive.music.MusicAction
 import me.hufman.androidautoidrive.music.MusicMetadata
+import me.hufman.androidautoidrive.truncate
 import me.hufman.idriveconnectionkit.rhmi.*
 import java.util.*
 import kotlin.collections.ArrayList
@@ -27,7 +28,7 @@ enum class BrowseAction(val getLabel: () -> String) {
 		return getLabel()
 	}
 }
-class BrowsePageView(val state: RHMIState, musicImageIDs: MusicImageIDs, val browsePageModel: BrowsePageModel, val browseController: BrowsePageController, var previouslySelected: MusicMetadata?, val graphicsHelpers: GraphicsHelpers): CoroutineScope {
+class BrowsePageView(val state: RHMIState, val musicImageIDs: MusicImageIDs, val browsePageModel: BrowsePageModel, val browseController: BrowsePageController, var previouslySelected: MusicMetadata?, val graphicsHelpers: GraphicsHelpers): CoroutineScope {
 	override val coroutineContext: CoroutineContext
 		get() = Dispatchers.IO
 
@@ -170,10 +171,7 @@ class BrowsePageView(val state: RHMIState, musicImageIDs: MusicImageIDs, val bro
 								else
 									songIcon
 
-						var cleanedTitle = UnicodeCleaner.clean(item.title ?: "")
-						if (cleanedTitle.length > ROW_LINE_MAX_LENGTH) {
-							cleanedTitle = cleanedTitle.substring(0, 20) + "..."
-						}
+						val cleanedTitle = UnicodeCleaner.clean(item.title ?: "").truncate(ROW_LINE_MAX_LENGTH)
 
 						// if there is no subtitle then don't display it
 						val displayString = if (item.subtitle.isNullOrBlank()) {
