@@ -17,7 +17,7 @@ class TestMusicAppMode {
 			on { get(AppSettings.KEYS.AUDIO_FORCE_CONTEXT) } doReturn "false"
 			on { get(AppSettings.KEYS.AUDIO_SUPPORTS_USB) } doReturn "false"
 		}
-		val mode = MusicAppMode(emptyMap(), settings, null)
+		val mode = MusicAppMode(emptyMap(), settings, null, null, null)
 		assertFalse(mode.shouldRequestAudioContext())
 
 		whenever(settings[AppSettings.KEYS.AUDIO_FORCE_CONTEXT]) doReturn "true"
@@ -32,7 +32,7 @@ class TestMusicAppMode {
 			on { get(AppSettings.KEYS.AUDIO_FORCE_CONTEXT) } doReturn "false"
 			on { get(AppSettings.KEYS.AUDIO_SUPPORTS_USB) } doReturn "false"
 		}
-		val mode = MusicAppMode(emptyMap(), settings, null)
+		val mode = MusicAppMode(emptyMap(), settings, null, null, null)
 		assertFalse(mode.shouldRequestAudioContext())
 
 		// the phone is old enough to support it
@@ -52,7 +52,7 @@ class TestMusicAppMode {
 			on { get(AppSettings.KEYS.AUDIO_FORCE_CONTEXT) } doReturn "false"
 			on { get(AppSettings.KEYS.AUDIO_SUPPORTS_USB) } doReturn "false"
 		}
-		val mode = MusicAppMode(emptyMap(), settings, null)
+		val mode = MusicAppMode(emptyMap(), settings, null, null, null)
 		assertTrue(mode.shouldRequestAudioContext())
 	}
 
@@ -62,21 +62,21 @@ class TestMusicAppMode {
 		val id6Capabilities = mapOf("hmi.type" to "ID6")
 		val settings = mock<MutableAppSettings>()
 		// spotify not installed
-		val noSpotifyMode = MusicAppMode(id6Capabilities, settings, null)
+		val noSpotifyMode = MusicAppMode(id6Capabilities, settings, null, null, null)
 		assertFalse(noSpotifyMode.shouldId5Playback())
 		// old spotify installed
-		val oldSpotifyMode = MusicAppMode(id6Capabilities, settings, "8.4.98.892")
+		val oldSpotifyMode = MusicAppMode(id6Capabilities, settings, null, null, "8.4.98.892")
 		assertFalse(oldSpotifyMode.shouldId5Playback())
 		// new spotify installed
-		val newSpotifyMode = MusicAppMode(id6Capabilities, settings, "8.5.68.904")
+		val newSpotifyMode = MusicAppMode(id6Capabilities, settings, null, null, "8.5.68.904")
 		assertTrue(newSpotifyMode.shouldId5Playback())
 		// newer spotify installed
-		val newerSpotifyMode = MusicAppMode(id6Capabilities, settings, "8.6.20")
+		val newerSpotifyMode = MusicAppMode(id6Capabilities, settings, null, null, "8.6.20")
 		assertTrue(newerSpotifyMode.shouldId5Playback())
 
 		// force spotify layout
 		whenever(settings[AppSettings.KEYS.FORCE_SPOTIFY_LAYOUT]) doReturn "true"
-		val forcedSpotifyMode = MusicAppMode(id6Capabilities, settings, null)
+		val forcedSpotifyMode = MusicAppMode(id6Capabilities, settings, null, null, null)
 		assertTrue(forcedSpotifyMode.shouldId5Playback())
 	}
 
